@@ -1,0 +1,50 @@
+name: CI Analytics Service
+
+on:
+  push:
+    paths:
+      - 'services/analytics/**'
+
+jobs:
+  build-and-test:
+    name: Build e Unit Tests (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar dependencias
+        working-directory: services/analytics
+        run: pip install -r requirements.txt
+      - name: Rodar testes com pytest
+        working-directory: services/analytics
+        run: python -m pytest tests/ -v --tb=short
+
+  lint:
+    name: Linter Python (flake8)
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar linters
+        run: pip install flake8 pylint
+      - name: flake8
+        run: flake8 services/analytics/ --max-line-length=120 --ignore=E203,W503
+
+  security-scan:
+    name: Security Scan (SAST)
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: SAST - Bandit (codigo Python)
+        run: |
+          pip install bandit
+          bandit -r services/analytics/ -ll -ii
