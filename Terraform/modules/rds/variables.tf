@@ -1,5 +1,5 @@
 variable "project" {
-  description = "Bases de dados TechChallenge2"
+  description = "Bases de dados TechChallenge3"
   type        = string
 }
 
