@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'services/auth/**'
+      - 'services/auth/**' # dispara APENAS quando auth muda
   pull_request:
     branches: [main]
     paths:
@@ -16,6 +16,9 @@ env:
   IMAGE_TAG: v1.0.0-${{ github.sha }}
 
 jobs:
+# ============================================================
+# JOB 1: Build e Testes Unitários
+# ============================================================
   build-and-test:
     name: Build e Unit Tests
     runs-on: ubuntu-latest
@@ -26,6 +29,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
+          cache: true # cache das dependências entre runs
 
       - name: Download dependencias
         working-directory: services/auth

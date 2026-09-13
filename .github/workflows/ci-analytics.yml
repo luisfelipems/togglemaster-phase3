@@ -6,23 +6,25 @@ on:
       - 'services/analytics/**'
 
 jobs:
-  build-and-test:
-    name: Build e Unit Tests (Python)
+build-and-test:
+    name: Build e Testes (Python)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Instalar dependencias
+          cache: 'pip'
+      - name: Instalar dependências
         working-directory: services/analytics
         run: pip install -r requirements.txt
-      - name: Rodar testes com pytest
+      - name: Rodar testes
         working-directory: services/analytics
-        run: python -m pytest tests/ -v --tb=short
+        run: python -m pytest tests/ -v --cov=. --cov-report=xml
 
-  lint:
-    name: Linter Python (flake8)
+  Lint:
+    name: Lint (Python)
     runs-on: ubuntu-latest
     needs: build-and-test
     steps:
@@ -30,21 +32,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Instalar linters
+      - name: Instalar ferramentas de lint
         run: pip install flake8 pylint
-      - name: flake8
-        run: flake8 services/analytics/ --max-line-length=120 --ignore=E203,W503
+      - name: flake8 (estilo)
+        working-directory: services/analytics
+        run: flake8 . --max-line-length=120 --exclude=.venv
+      - name: pylint (análise estática)
+        working-directory: services/analytics
+        run: pylint . --fail-under=7.0
 
   security-scan:
-    name: Security Scan (SAST)
+    name: Security Scan (Python)
     runs-on: ubuntu-latest
-    needs: build-and-test
+    needs: lint
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: SAST - Bandit (codigo Python)
-        run: |
-          pip install bandit
-          bandit -r services/analytics/ -ll -ii
+      # SCA: verificar dependências vulneráveis
+      - name: Instalar pip-audit

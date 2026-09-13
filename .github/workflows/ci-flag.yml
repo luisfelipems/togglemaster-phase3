@@ -4,7 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - 'services/flag/**'
+      - 'services/flag/**' # apenas quando arquivos de /flag/ mudam
+      - '.github/workflows/ci-flag.yml' # ou quando o próprio workflow muda
+
   pull_request:
     branches: [main]
     paths:

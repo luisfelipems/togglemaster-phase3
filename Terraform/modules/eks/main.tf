@@ -51,7 +51,7 @@ resource "aws_iam_role_policy_attachment" "node_registry" {
 resource "aws_eks_cluster" "main" {
     name     = "${var.project}-${var.environment}-cluster"
     role_arn = aws_iam_role.cluster.arn
-    version  = "1.30"
+    version  = "1.36"
 
     vpc_config {
         subnet_ids = var.private_subnets
