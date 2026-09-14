@@ -29,15 +29,12 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.25'   # CVE-2025-68121: stdlib fix em 1.24.13/1.25.7
           cache: true
 
-      - name: Fixar versao Go e gerar go.sum
+      - name: Gerar go.sum
         working-directory: services/evaluation
-        env:
-          GOTOOLCHAIN: local
         run: |
-          go mod edit -go=1.21
           go mod tidy
           go mod download
 
@@ -61,23 +58,17 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.25'   # CVE-2025-68121: consistente com o builder do Dockerfile
 
-      - name: Fixar versao Go e gerar go.sum
+      - name: Gerar go.sum
         working-directory: services/evaluation
-        env:
-          GOTOOLCHAIN: local
-        run: |
-          go mod edit -go=1.21
-          go mod tidy
+        run: go mod tidy
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v4
         with:
           version: latest
           working-directory: services/evaluation
-        env:
-          GOTOOLCHAIN: local
 
   # ============================================================
   # JOB 3: Security Scan — SCA + SAST (gate de segurança)
@@ -91,15 +82,11 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.25'   # CVE-2025-68121: consistente com o builder do Dockerfile
 
-      - name: Fixar versao Go e gerar go.sum
+      - name: Gerar go.sum
         working-directory: services/evaluation
-        env:
-          GOTOOLCHAIN: local
-        run: |
-          go mod edit -go=1.21
-          go mod tidy
+        run: go mod tidy
 
       # SCA: vulnerabilidades nas dependências
       - name: SCA - Trivy (dependencias)
@@ -116,12 +103,7 @@ jobs:
 
       - name: SAST - gosec
         working-directory: services/evaluation
-        run: |
-          # G704 (CWE-918 SSRF): as URLs sao construidas a partir de variaveis
-          # de ambiente (FLAG_SERVICE_URL, TARGETING_SERVICE_URL) — controladas
-          # pelo administrador via ConfigMap/Secret do Kubernetes, nao por input
-          # do usuario. Nao e SSRF exploravel externamente. Excluido intencionalmente.
-          $(go env GOPATH)/bin/gosec -severity high -exclude G704 ./...
+        run: $(go env GOPATH)/bin/gosec -severity high ./...
 
   # ============================================================
   # JOB 4: Docker Build + Container Scan + Push ECR
