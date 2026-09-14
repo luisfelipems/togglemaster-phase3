@@ -58,15 +58,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
+      # golangci-lint v1.64.8 foi compilado com Go 1.24 e falha ao ver "go 1.25" no go.mod
+      # go mod edit -go=1.21 rebaixa a diretiva no workspace (nao altera o repo)
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
           go-version: '1.25'
+          cache: false
 
-      - name: Preparar deps para linter
+      - name: Rebaixar go.mod para linter e baixar deps
         working-directory: services/auth
         run: |
-          # go mod edit fixa go.mod em 1.21 — golangci-lint v1.64.8 nao suporta go 1.25
-          # go mod download baixa as deps (resolve 'undefined: pgx') sem alterar go.mod
           go mod edit -go=1.21
           go mod download
 
@@ -75,6 +77,7 @@ jobs:
         with:
           version: latest
           working-directory: services/auth
+          skip-cache: true
 
   # ============================================================
   # JOB 3: Security Scan — SCA + SAST (gate de segurança)
