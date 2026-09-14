@@ -32,9 +32,11 @@ jobs:
           go-version: '1.21'
           cache: true
 
-      - name: Download dependencias
+      - name: Download dependencias e gerar go.sum
         working-directory: services/evaluation
-        run: go mod download
+        run: |
+          go mod tidy
+          go mod download
 
       - name: Build
         working-directory: services/evaluation
@@ -58,6 +60,10 @@ jobs:
         with:
           go-version: '1.21'
 
+      - name: Gerar go.sum (cada job inicia sem go.sum)
+        working-directory: services/evaluation
+        run: go mod tidy
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v4
         with:
@@ -77,6 +83,10 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.21'
+
+      - name: Gerar go.sum (cada job inicia sem go.sum)
+        working-directory: services/evaluation
+        run: go mod tidy
 
       # SCA: vulnerabilidades nas dependências
       - name: SCA - Trivy (dependencias)
