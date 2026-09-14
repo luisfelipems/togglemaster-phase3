@@ -78,9 +78,9 @@ jobs:
           sed -i '/^toolchain/d' go.mod
           echo "=== go.mod apos edicao ==="
           cat go.mod
-          # go mod download baixa o source; go build cria o export data (.a)
-          # que o golangci-lint precisa para "could not load export data"
-          go mod download
+          # go mod tidy regenera go.sum (go mod download nao o faz)
+          # GOTOOLCHAIN=local impede subida para go1.25; go build cria export data
+          go mod tidy
           go build ./...
 
       - name: golangci-lint
