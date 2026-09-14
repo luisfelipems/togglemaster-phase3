@@ -1,0 +1,23 @@
+﻿apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: togglemaster
+data:
+  AUTH_DB_HOST: togglemaster-auth-db.cxwkqyyyw4y3.sa-east-1.rds.amazonaws.com
+  AUTH_DB_NAME: auth_db
+  AUTH_DB_PORT: "5432"
+  DYNAMODB_REGION: sa-east-1
+  DYNAMODB_TABLE: analytics
+  AWS_DYNAMODB_TABLE: analytics
+  FLAG_DB_HOST: togglemaster-flag-db.cxwkqyyyw4y3.sa-east-1.rds.amazonaws.com
+  FLAG_DB_NAME: flag_db
+  FLAG_DB_PORT: "5432"
+  REDIS_HOST: togglemaster-redis-yddur5.serverless.sae1.cache.amazonaws.com
+  REDIS_PORT: "6379"
+  REDIS_URL: redis://togglemaster-redis-yddur5.serverless.sae1.cache.amazonaws.com:6379
+  SQS_QUEUE_URL: https://sqs.sa-east-1.amazonaws.com/905418203619/togglemaster-queue
+  SQS_REGION: sa-east-1
+  TARGETING_DB_HOST: togglemaster-targeting-db.cxwkqyyyw4y3.sa-east-1.rds.amazonaws.com
+  TARGETING_DB_NAME: targeting_db
+  TARGETING_DB_PORT: "5432"

@@ -1,54 +1,175 @@
-name: CI Analytics Service
+name: CI - Analytics Service
 
 on:
   push:
+    branches: [main]
+    paths:
+      - 'services/analytics/**'
+      - '.github/workflows/ci-analytics.yml'
+  pull_request:
+    branches: [main]
     paths:
       - 'services/analytics/**'
 
+env:
+  SERVICE: analytics
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+  IMAGE_TAG: v1.0.0-${{ github.sha }}
+
 jobs:
+  # ============================================================
+  # JOB 1: Build e Testes Unitários (Python)
+  # ============================================================
   build-and-test:
     name: Build e Testes (Python)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-      - name: Instalar dependências
+
+      - name: Instalar dependencias
         working-directory: services/analytics
         run: pip install -r requirements.txt
+
       - name: Rodar testes
         working-directory: services/analytics
         run: python -m pytest tests/ -v --cov=. --cov-report=xml
 
+  # ============================================================
+  # JOB 2: Lint (Python)
+  # ============================================================
   lint:
     name: Lint (Python)
     runs-on: ubuntu-latest
     needs: build-and-test
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
       - name: Instalar ferramentas de lint
         run: pip install flake8 pylint
+
       - name: flake8 (estilo)
         working-directory: services/analytics
         run: flake8 . --max-line-length=120 --exclude=.venv
-      - name: pylint (análise estática)
+
+      - name: pylint (analise estatica)
         working-directory: services/analytics
         run: pylint . --fail-under=7.0
 
+  # ============================================================
+  # JOB 3: Security Scan — SCA + SAST (gate de segurança)
+  # ============================================================
   security-scan:
-    name: Security Scan (Python)
+    name: Security Scan (SCA + SAST)
     runs-on: ubuntu-latest
     needs: lint
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Instalar pip-audit
-        run: pip install pip-audit
+
+      # SCA: vulnerabilidades nas dependências via pip-audit
+      - name: Instalar pip-audit e bandit
+        run: pip install pip-audit bandit
+
+      - name: SCA - pip-audit (dependencias)
+        working-directory: services/analytics
+        run: pip-audit -r requirements.txt --severity critical --fail-on-vuln
+        # falha se encontrar vulnerabilidade CRÍTICA nas dependências
+
+      # SCA: Trivy fs como segunda camada de verificação
+      - name: SCA - Trivy (dependencias)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'services/analytics'
+          severity: 'CRITICAL'
+          exit-code: '1'   # pipeline falha se achar vulnerabilidade CRÍTICA
+
+      # SAST: análise estática do código Python
+      - name: SAST - bandit
+        working-directory: services/analytics
+        run: bandit -r . -lll --exclude .venv,tests
+        # -lll = reporta apenas HIGH severity; falha se encontrar
+
+  # ============================================================
+  # JOB 4: Docker Build + Container Scan + Push ECR
+  # ============================================================
+  docker-build-push:
+    name: Docker Build, Scan e Push ECR
+    runs-on: ubuntu-latest
+    needs: security-scan
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar credenciais AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login no ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build da imagem Docker
+        run: |
+          docker build -t $ECR_REGISTRY/togglemaster/$SERVICE:$IMAGE_TAG \
+            services/$SERVICE/
+
+      # Container Scan: scan da imagem antes de enviar
+      - name: Container Scan - Trivy (imagem)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ env.ECR_REGISTRY }}/togglemaster/${{ env.SERVICE }}:${{ env.IMAGE_TAG }}'
+          severity: 'CRITICAL'
+          exit-code: '1'   # bloqueia push se imagem tiver crítico
+
+      - name: Push para o ECR
+        run: |
+          docker push $ECR_REGISTRY/togglemaster/$SERVICE:$IMAGE_TAG
+
+  # ============================================================
+  # JOB 5: Atualizar tag no repositório GitOps
+  # ============================================================
+  update-gitops:
+    name: Update GitOps
+    runs-on: ubuntu-latest
+    needs: docker-build-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout repositorio GitOps
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/togglemaster-gitops
+          token: ${{ secrets.GITOPS_TOKEN }}
+          path: gitops
+
+      - name: Atualizar tag da imagem no deployment.yaml
+        run: |
+          NEW_IMAGE="${ECR_REGISTRY}/togglemaster/${SERVICE}:${IMAGE_TAG}"
+          sed -i "s|image: .*togglemaster/${SERVICE}.*|image: ${NEW_IMAGE}|g" \
+            gitops/apps/${SERVICE}/deployment.yaml
+          cat gitops/apps/${SERVICE}/deployment.yaml | grep image:
+
+      - name: Commit e Push no GitOps
+        run: |
+          cd gitops
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apps/${SERVICE}/deployment.yaml
+          git diff --staged --quiet || git commit -m \
+            "chore: update ${SERVICE} image to ${IMAGE_TAG} [skip ci]"
+          git push
