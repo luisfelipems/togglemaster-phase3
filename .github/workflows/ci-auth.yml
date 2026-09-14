@@ -55,26 +55,29 @@ jobs:
     name: Linter e Analise Estatica
     runs-on: ubuntu-latest
     needs: build-and-test
+    env:
+      # GOTOOLCHAIN=local impede que golangci-lint ou go ativem Go 1.25
+      # mesmo que go.mod declare "go 1.25"
+      GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
 
-      # golangci-lint v1.64.8 foi compilado com Go 1.24.
-      # Com Go 1.25 instalado, a action internamente chama "go list" que atualiza
-      # go.mod de volta para "go 1.25" — causando "requires newer Go version".
-      # Solucao: instalar Go 1.22 neste job. Mesmo que a action chame "go list",
-      # ela atualiza go.mod para 1.22 no maximo — compativel com golangci-lint 1.24.
-      - name: Setup Go (1.22 para compatibilidade com golangci-lint)
+      # golangci-lint v1.64.8 compilado com Go 1.24 nao suporta "go 1.25" no go.mod.
+      # Usamos Go 1.22 + GOTOOLCHAIN=local + sed para garantir que go.mod diga 1.21.
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
           cache: false
 
-      - name: Preparar go.mod e baixar deps
+      - name: Rebaixar go.mod para linter (sed direto no arquivo)
         working-directory: services/auth
         run: |
-          # Rebaixa go (e remove toolchain) para garantir compatibilidade
-          go mod edit -go=1.21
-          go mod edit -toolchain=none
+          # sed edita o arquivo diretamente, independente do toolchain
+          sed -i 's/^go [0-9][0-9.]*/go 1.21/' go.mod
+          sed -i '/^toolchain/d' go.mod
+          echo "=== go.mod apos edicao ==="
+          cat go.mod
           go mod download
 
       - name: golangci-lint
