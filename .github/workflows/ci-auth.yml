@@ -58,18 +58,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # golangci-lint v1.64.8 foi compilado com Go 1.24 e falha ao ver "go 1.25" no go.mod
-      # go mod edit -go=1.21 rebaixa a diretiva no workspace (nao altera o repo)
-      - name: Setup Go
+      # golangci-lint v1.64.8 foi compilado com Go 1.24.
+      # Com Go 1.25 instalado, a action internamente chama "go list" que atualiza
+      # go.mod de volta para "go 1.25" — causando "requires newer Go version".
+      # Solucao: instalar Go 1.22 neste job. Mesmo que a action chame "go list",
+      # ela atualiza go.mod para 1.22 no maximo — compativel com golangci-lint 1.24.
+      - name: Setup Go (1.22 para compatibilidade com golangci-lint)
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.22'
           cache: false
 
-      - name: Rebaixar go.mod para linter e baixar deps
+      - name: Preparar go.mod e baixar deps
         working-directory: services/auth
         run: |
+          # Rebaixa go (e remove toolchain) para garantir compatibilidade
           go mod edit -go=1.21
+          go mod edit -toolchain=none
           go mod download
 
       - name: golangci-lint
