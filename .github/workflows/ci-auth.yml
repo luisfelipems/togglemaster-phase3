@@ -32,9 +32,11 @@ jobs:
           go-version: '1.25'   # CVE-2025-68121: stdlib fix em 1.25.7
           cache: true
 
-      - name: Gerar go.sum
+      - name: Gerar go.sum e baixar deps
         working-directory: services/auth
         run: |
+          # go mod edit garante que go.mod nao suba para 1.25 (incompativel com golangci-lint)
+          go mod edit -go=1.21
           go mod tidy
           go mod download
 
@@ -58,11 +60,15 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25'   # CVE-2025-68121: consistente com o builder do Dockerfile
+          go-version: '1.25'
 
-      - name: Gerar go.sum
+      - name: Preparar deps para linter
         working-directory: services/auth
-        run: go mod tidy
+        run: |
+          # go mod edit fixa go.mod em 1.21 — golangci-lint v1.64.8 nao suporta go 1.25
+          # go mod download baixa as deps (resolve 'undefined: pgx') sem alterar go.mod
+          go mod edit -go=1.21
+          go mod download
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v4
@@ -84,9 +90,11 @@ jobs:
         with:
           go-version: '1.25'   # CVE-2025-68121: consistente com o builder do Dockerfile
 
-      - name: Gerar go.sum
+      - name: Baixar deps
         working-directory: services/auth
-        run: go mod tidy
+        run: |
+          go mod edit -go=1.21
+          go mod download
 
       # SCA: vulnerabilidades nas dependências
       - name: SCA - Trivy (dependencias)
