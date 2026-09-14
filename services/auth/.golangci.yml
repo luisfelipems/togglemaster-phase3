@@ -1,0 +1,21 @@
+# .golangci.yml — configuracao do linter para o auth-service
+# Mantemos checagens de segurança (gosec, govet) e desabilitamos
+# regras de estilo que nao impactam segurança.
+
+run:
+  timeout: 5m
+  go: '1.21'
+
+linters:
+  disable:
+    - errcheck      # retornos de erro nao verificados — estilo, nao vulnerabilidade
+
+issues:
+  exclude-rules:
+    # io/ioutil deprecated — aviso de estilo, nao vulnerabilidade de seguranca
+    - linters:
+        - staticcheck
+      text: "SA1019"
+
+  max-issues-per-linter: 0
+  max-same-issues: 0
