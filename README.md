@@ -7,7 +7,7 @@
 
 **Nome:** Luis Felipe Martins da Silva  
 **RM:** 372751  
-**Curso:** Pós-Graduação em Arquitetura de Software  
+**Curso:** Pós-Graduação em Devops e Arquitetura Cloud  
 **Instituição:** POSTECH - FIAP
 
 ---
