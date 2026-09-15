@@ -96,3 +96,6 @@ Saída esperada: `Chave de API inválida ou inativa`
 <!-- ci retry 2 -->
 
 <!-- ci retry 3 -->
+
+
+# Testando nossos pipelines em video do Tech Challenge 3!!!
